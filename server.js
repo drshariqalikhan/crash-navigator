@@ -6,12 +6,11 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.static('public'));
 
-// Secure Proxy Route: The browser calls THIS, and THIS calls TwelveData
 app.get('/api/prices', async (req, res) => {
     try {
         const { symbols } = req.query;
-        const apiKey = process.env.TWELVE_DATA_KEY; // Hidden on Render
-        
+        const apiKey = process.env.TWELVE_DATA_KEY; 
+
         if (!apiKey) {
             return res.status(500).json({ error: 'API Key not configured on server' });
         }
@@ -23,7 +22,6 @@ app.get('/api/prices', async (req, res) => {
             }
         });
         
-        // TwelveData returns an object for multiple symbols or a single object for one
         res.json(response.data);
     } catch (error) {
         console.error('Proxy Error:', error.message);

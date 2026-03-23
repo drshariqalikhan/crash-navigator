@@ -23,113 +23,151 @@
     </style>
 </head>
 <body>
-    <div class="container p-5">
-        <div class="is-flex is-justify-content-between is-align-items-center mb-6">
-            <div>
-                <h1 class="title has-text-white mb-1">Crash Navigator</h1>
-                <p class="subtitle is-6 has-text-grey">Secure Deployment Version</p>
-            </div>
-            <div class="buttons has-background-black-ter p-1" style="border-radius: 12px;">
-                <button id="btn-strat" class="nav-btn active" onclick="tab('strat')">Strategy</button>
-                <button id="btn-shop" class="nav-btn" onclick="tab('shop')">Shopping List</button>
-            </div>
+<div class="container p-5">
+    <div class="is-flex is-justify-content-between is-align-items-center mb-6">
+        <div>
+            <h1 class="title has-text-white mb-1">Crash Navigator</h1>
+            <p class="subtitle is-6 has-text-grey">Secure Deployment Version</p>
         </div>
-
-        <!-- Strategy Tab -->
-        <div id="tab-strat" class="tab-content is-active">
-            <div class="columns">
-                <div class="column is-4">
-                    <div class="card p-5 mb-4">
-                        <label class="label has-text-grey">Cash to Deploy</label>
-                        <input class="input is-medium" type="number" id="cash" value="10000" oninput="draw()">
-                        <label class="label has-text-grey mt-4">Current Drop %</label>
-                        <input class="input is-medium" type="number" id="drop" value="9" oninput="draw()">
-                    </div>
-                </div>
-                <div class="column is-8">
-                    <div class="card overflow-hidden">
-                        <table class="table">
-                            <thead>
-                                <tr><th>Drop %</th><th>Target %</th><th class="has-text-right">Deploy Now</th></tr>
-                            </thead>
-                            <tbody id="out"></tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Shopping Tab -->
-        <div id="tab-shop" class="tab-content">
-            <div class="field has-addons mb-5">
-                <div class="control is-expanded"><input id="tick" class="input" placeholder="Ticker..."></div>
-                <div class="control"><button class="button is-primary" onclick="add()">Add</button></div>
-                <div class="control ml-2"><button id="ref-btn" class="button is-dark" onclick="refresh()">Refresh Prices</button></div>
-            </div>
-            <div id="list" class="columns is-multiline"></div>
+        <div class="buttons has-background-black-ter p-1" style="border-radius: 12px;">
+            <button id="btn-strat" class="nav-btn active" onclick="tab('strat')">Strategy</button>
+            <button id="btn-shop" class="nav-btn" onclick="tab('shop')">Shopping List</button>
         </div>
     </div>
 
-    <script>
-        let list = ['AAPL', 'META', 'MSFT', 'GOOG', 'NVDA', 'NFLX', 'AMZN'].map(t => ({ t, lv: [0,0,0,0], p: null }));
+    <!-- Strategy Tab -->
+    <div id="tab-strat" class="tab-content is-active">
+        <div class="columns">
+            <div class="column is-4">
+                <div class="card p-5 mb-4">
+                    <label class="label has-text-grey">Cash to Deploy</label>
+                    <input class="input is-medium" type="number" id="cash" value="10000" oninput="draw()">
+                    <label class="label has-text-grey mt-4">Current Drop %</label>
+                    <input class="input is-medium" type="number" id="drop" value="0" oninput="draw()">
+                </div>
+            </div>
+            <div class="column is-8">
+                <div class="card overflow-hidden">
+                    <table class="table">
+                        <thead>
+                            <tr><th>Drop %</th><th>Target %</th><th class="has-text-right">Deploy Now</th></tr>
+                        </thead>
+                        <tbody id="out"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
 
-        function tab(t) {
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('is-active'));
-            document.getElementById('tab-'+t).classList.add('is-active');
-            document.getElementById('btn-strat').classList.toggle('active', t==='strat');
-            document.getElementById('btn-shop').classList.toggle('active', t==='shop');
-            if(t==='shop') render();
+    <!-- Shopping Tab -->
+    <div id="tab-shop" class="tab-content">
+        <div class="field has-addons mb-5">
+            <div class="control is-expanded"><input id="tick" class="input" placeholder="Ticker..."></div>
+            <div class="control"><button class="button is-primary" onclick="add()">Add</button></div>
+            <div class="control ml-2"><button id="ref-btn" class="button is-dark" onclick="refresh()">Refresh Prices</button></div>
+        </div>
+        <div id="list" class="columns is-multiline"></div>
+    </div>
+</div>
+
+<script>
+    // LOAD DATA ON STARTUP
+    let list = JSON.parse(localStorage.getItem('crash_nav_data')) || 
+               ['AAPL', 'META', 'MSFT', 'GOOG', 'NVDA', 'NFLX', 'AMZN'].map(t => ({ t, lv: [0,0,0,0], p: null }));
+
+    function save() {
+        localStorage.setItem('crash_nav_data', JSON.stringify(list));
+    }
+
+    function tab(t) {
+        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('is-active'));
+        document.getElementById('tab-'+t).classList.add('is-active');
+        document.getElementById('btn-strat').classList.toggle('active', t==='strat');
+        document.getElementById('btn-shop').classList.toggle('active', t==='shop');
+        if(t==='shop') render();
+    }
+
+    function calc(d) { return d < 27 ? d + 10 : (2.75 * d) - 25.64; }
+
+    function draw() {
+        const c = parseFloat(document.getElementById('cash').value) || 0;
+        const d = parseFloat(document.getElementById('drop').value) || 0;
+        const b = document.getElementById('out'); b.innerHTML = '';
+        let prev = 0;
+        for(let i=0; i<15; i++) {
+            const curD = d + (i*2);
+            const target = Math.min(100, calc(curD));
+            const inc = i===0 ? target : Math.max(0, target-prev);
+            b.innerHTML += `<tr><td><strong>-${curD}%</strong></td><td>${target.toFixed(1)}%</td><td class="has-text-right has-text-primary">$${((inc/100)*c).toLocaleString()}</td></tr>`;
+            prev = target;
         }
+    }
 
-        function calc(d) { return d < 27 ? d + 10 : (2.75 * d) - 25.64; }
-
-        function draw() {
-            const c = parseFloat(document.getElementById('cash').value) || 0;
-            const d = parseFloat(document.getElementById('drop').value) || 0;
-            const b = document.getElementById('out'); b.innerHTML = '';
-            let prev = 0;
-            for(let i=0; i<15; i++) {
-                const curD = d + (i*2);
-                const target = Math.min(100, calc(curD));
-                const inc = i===0 ? target : Math.max(0, target-prev);
-                b.innerHTML += `<tr><td><strong>-${curD}%</strong></td><td>${target.toFixed(1)}%</td><td class="has-text-right has-text-primary">$${((inc/100)*c).toLocaleString()}</td></tr>`;
-                prev = target;
-            }
-        }
-
-        function render() {
-            const g = document.getElementById('list'); g.innerHTML = '';
-            list.forEach((item, i) => {
-                const range = item.lv[0] - item.lv[3];
-                const prog = range > 0 && item.p ? Math.max(0, Math.min(100, ((item.lv[0]-item.p)/range)*100)) : 0;
-                g.innerHTML += `
-                    <div class="column is-4">
-                        <div class="card p-4">
-                            <div class="is-flex is-justify-content-between"><strong>${item.t}</strong><span class="has-text-primary">${item.p ? '$'+item.p : '--'}</span></div>
-                            <div class="columns is-mobile is-multiline mt-2">
-                                ${item.lv.map((v, li) => `<div class="column is-6 py-1"><input class="input is-small" type="number" value="${v}" onchange="list[${i}].lv[${li}]=this.value;render()"></div>`).join('')}
-                            </div>
-                            <div class="progress-container"><div class="progress-bar" style="width:${prog}%; background:${prog>=100?'#48c78e':'#3e8ed0'}"></div></div>
+    function render() {
+        const g = document.getElementById('list'); g.innerHTML = '';
+        list.forEach((item, i) => {
+            const range = item.lv[0] - item.lv[3];
+            const prog = range > 0 && item.p ? Math.max(0, Math.min(100, ((item.lv[0]-item.p)/range)*100)) : 0;
+            g.innerHTML += `
+                <div class="column is-4">
+                    <div class="card p-4">
+                        <div class="is-flex is-justify-content-between">
+                            <strong>${item.t}</strong>
+                            <span class="has-text-primary">${item.p ? '$'+item.p : '--'}</span>
                         </div>
-                    </div>`;
+                        <div class="columns is-mobile is-multiline mt-2">
+                            ${item.lv.map((v, li) => `
+                                <div class="column is-6 py-1">
+                                    <input class="input is-small" type="number" value="${v}" 
+                                    onchange="list[${i}].lv[${li}]=this.value;save();render()">
+                                </div>`).join('')}
+                        </div>
+                        <div class="progress-container">
+                            <div class="progress-bar" style="width:${prog}%; background:${prog>=100?'#48c78e':'#3e8ed0'}"></div>
+                        </div>
+                        <button class="button is-ghost is-small p-0 has-text-danger" onclick="remove(${i})">Remove</button>
+                    </div>
+                </div>`;
+        });
+    }
+
+    function add() { 
+        const t = document.getElementById('tick').value.toUpperCase(); 
+        if(t) { 
+            list.unshift({t, lv:[0,0,0,0], p:null}); 
+            document.getElementById('tick').value = '';
+            save(); 
+            render(); 
+        } 
+    }
+
+    function remove(index) {
+        list.splice(index, 1);
+        save();
+        render();
+    }
+    
+    async function refresh() {
+        const btn = document.getElementById('ref-btn'); 
+        btn.classList.add('is-loading');
+        try {
+            const tickers = list.map(i => i.t).join(',');
+            const res = await fetch(`/api/prices?symbols=${tickers}`);
+            const data = await res.json();
+            list.forEach(item => { 
+                if(data[item.t]) item.p = parseFloat(data[item.t].price); 
+                else if (data.price && list.length === 1) item.p = parseFloat(data.price); // Handle single stock response
             });
+            save();
+            render();
+        } catch(e) {
+            console.error(e);
+        } finally { 
+            btn.classList.remove('is-loading'); 
         }
+    }
 
-        function add() { const t = document.getElementById('tick').value.toUpperCase(); if(t) { list.unshift({t, lv:[0,0,0,0], p:null}); render(); } }
-        
-        async function refresh() {
-            const btn = document.getElementById('ref-btn'); btn.classList.add('is-loading');
-            try {
-                const tickers = list.map(i => i.t).join(',');
-                // CALLING THE BACKEND PROXY INSTEAD OF TWELVEDATA DIRECTLY
-                const res = await fetch(`/api/prices?symbols=${tickers}`);
-                const data = await res.json();
-                list.forEach(item => { if(data[item.t]) item.p = parseFloat(data[item.t].price); });
-                render();
-            } finally { btn.classList.remove('is-loading'); }
-        }
-
-        draw();
-    </script>
+    draw();
+</script>
 </body>
 </html>
