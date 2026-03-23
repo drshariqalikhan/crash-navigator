@@ -2,13 +2,13 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Crash Navigator</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
     <style>
         :root { --bg: #0a0a0a; --card: #141414; --border: #262626; --emerald: #00d1b2; }
         body { background-color: var(--bg); color: #fff; min-height: 100vh; font-family: system-ui, -apple-system, sans-serif; }
-        .card { background-color: var(--card); border: 1px solid var(--border); color: #fff; border-radius: 1.25rem; transition: transform 0.2s; }
+        .card { background-color: var(--card); border: 1px solid var(--border); color: #fff; border-radius: 1.25rem; }
         .input { background-color: #000; border-color: var(--border); color: #fff; border-radius: 0.75rem; }
         .input:focus { border-color: var(--emerald); box-shadow: none; }
         .table { background-color: transparent; color: #fff; width: 100%; }
@@ -23,15 +23,15 @@
     </style>
 </head>
 <body>
-<div class="container p-5">
-    <div class="is-flex is-justify-content-between is-align-items-center mb-6">
+<div class="container p-4">
+    <div class="is-flex is-justify-content-between is-align-items-center mb-5">
         <div>
-            <h1 class="title has-text-white mb-1">Crash Navigator</h1>
-            <p class="subtitle is-6 has-text-grey">Secure Deployment Version</p>
+            <h1 class="title is-4 has-text-white mb-1">Crash Navigator</h1>
+            <p class="subtitle is-7 has-text-grey">Secure Deployment v2</p>
         </div>
         <div class="buttons has-background-black-ter p-1" style="border-radius: 12px;">
             <button id="btn-strat" class="nav-btn active" onclick="tab('strat')">Strategy</button>
-            <button id="btn-shop" class="nav-btn" onclick="tab('shop')">Shopping List</button>
+            <button id="btn-shop" class="nav-btn" onclick="tab('shop')">Shopping</button>
         </div>
     </div>
 
@@ -40,14 +40,14 @@
         <div class="columns">
             <div class="column is-4">
                 <div class="card p-5 mb-4">
-                    <label class="label has-text-grey">Cash to Deploy</label>
-                    <input class="input is-medium" type="number" id="cash" value="10000" oninput="draw()">
-                    <label class="label has-text-grey mt-4">Current Drop %</label>
-                    <input class="input is-medium" type="number" id="drop" value="0" oninput="draw()">
+                    <label class="label has-text-grey is-small">Cash to Deploy</label>
+                    <input class="input is-medium" type="number" id="cash" value="10000" oninput="updateState()">
+                    <label class="label has-text-grey is-small mt-4">Current Drop %</label>
+                    <input class="input is-medium" type="number" id="drop" value="0" oninput="updateState()">
                 </div>
             </div>
             <div class="column is-8">
-                <div class="card overflow-hidden">
+                <div class="card" style="overflow-x: auto;">
                     <table class="table">
                         <thead>
                             <tr><th>Drop %</th><th>Target %</th><th class="has-text-right">Deploy Now</th></tr>
@@ -64,68 +64,100 @@
         <div class="field has-addons mb-5">
             <div class="control is-expanded"><input id="tick" class="input" placeholder="Ticker..."></div>
             <div class="control"><button class="button is-primary" onclick="add()">Add</button></div>
-            <div class="control ml-2"><button id="ref-btn" class="button is-dark" onclick="refresh()">Refresh Prices</button></div>
+            <div class="control ml-2"><button id="ref-btn" class="button is-dark" onclick="refresh()">Refresh</button></div>
         </div>
-        <div id="list" class="columns is-multiline"></div>
+        <div id="list" class="columns is-multiline is-mobile"></div>
     </div>
 </div>
 
 <script>
-    // LOAD DATA ON STARTUP
-    let list = JSON.parse(localStorage.getItem('crash_nav_data')) || 
-               ['AAPL', 'META', 'MSFT', 'GOOG', 'NVDA', 'NFLX', 'AMZN'].map(t => ({ t, lv: [0,0,0,0], p: null }));
+    // 1. GLOBAL STATE
+    let state = {
+        cash: 10000,
+        drop: 0,
+        list: ['AAPL', 'MSFT', 'NVDA', 'AMZN'].map(t => ({ t, lv: [0,0,0,0], p: null }))
+    };
 
-    function save() {
-        localStorage.setItem('crash_nav_data', JSON.stringify(list));
+    // 2. PERSISTENCE LOGIC
+    function loadState() {
+        const saved = localStorage.getItem('crash_navigator_v2');
+        if (saved) {
+            try {
+                const parsed = JSON.parse(saved);
+                state = { ...state, ...parsed }; // Merge saved data over defaults
+            } catch (e) { console.error("Load failed", e); }
+        }
+        // Push state into UI inputs
+        document.getElementById('cash').value = state.cash;
+        document.getElementById('drop').value = state.drop;
+        draw();
+        render();
     }
 
+    function updateState() {
+        state.cash = parseFloat(document.getElementById('cash').value) || 0;
+        state.drop = parseFloat(document.getElementById('drop').value) || 0;
+        save();
+        draw();
+    }
+
+    function save() {
+        localStorage.setItem('crash_navigator_v2', JSON.stringify(state));
+    }
+
+    // 3. NAVIGATION
     function tab(t) {
         document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('is-active'));
         document.getElementById('tab-'+t).classList.add('is-active');
         document.getElementById('btn-strat').classList.toggle('active', t==='strat');
         document.getElementById('btn-shop').classList.toggle('active', t==='shop');
-        if(t==='shop') render();
     }
 
+    // 4. STRATEGY MATH
     function calc(d) { return d < 27 ? d + 10 : (2.75 * d) - 25.64; }
 
     function draw() {
-        const c = parseFloat(document.getElementById('cash').value) || 0;
-        const d = parseFloat(document.getElementById('drop').value) || 0;
-        const b = document.getElementById('out'); b.innerHTML = '';
+        const b = document.getElementById('out'); 
+        b.innerHTML = '';
         let prev = 0;
         for(let i=0; i<15; i++) {
-            const curD = d + (i*2);
+            const curD = state.drop + (i*2);
             const target = Math.min(100, calc(curD));
             const inc = i===0 ? target : Math.max(0, target-prev);
-            b.innerHTML += `<tr><td><strong>-${curD}%</strong></td><td>${target.toFixed(1)}%</td><td class="has-text-right has-text-primary">$${((inc/100)*c).toLocaleString()}</td></tr>`;
+            b.innerHTML += `<tr>
+                <td><strong>-${curD}%</strong></td>
+                <td>${target.toFixed(1)}%</td>
+                <td class="has-text-right has-text-primary">$${((inc/100)*state.cash).toLocaleString(undefined, {maximumFractionDigits:0})}</td>
+            </tr>`;
             prev = target;
         }
     }
 
+    // 5. SHOPPING LIST LOGIC
     function render() {
-        const g = document.getElementById('list'); g.innerHTML = '';
-        list.forEach((item, i) => {
+        const g = document.getElementById('list'); 
+        g.innerHTML = '';
+        state.list.forEach((item, i) => {
             const range = item.lv[0] - item.lv[3];
             const prog = range > 0 && item.p ? Math.max(0, Math.min(100, ((item.lv[0]-item.p)/range)*100)) : 0;
             g.innerHTML += `
-                <div class="column is-4">
-                    <div class="card p-4">
-                        <div class="is-flex is-justify-content-between">
-                            <strong>${item.t}</strong>
-                            <span class="has-text-primary">${item.p ? '$'+item.p : '--'}</span>
+                <div class="column is-6-mobile is-4-desktop">
+                    <div class="card p-3">
+                        <div class="is-flex is-justify-content-between mb-2">
+                            <strong class="is-size-5">${item.t}</strong>
+                            <span class="has-text-primary weight-bold">${item.p ? '$'+item.p : '--'}</span>
                         </div>
-                        <div class="columns is-mobile is-multiline mt-2">
+                        <div class="columns is-mobile is-multiline is-variable is-1">
                             ${item.lv.map((v, li) => `
                                 <div class="column is-6 py-1">
                                     <input class="input is-small" type="number" value="${v}" 
-                                    onchange="list[${i}].lv[${li}]=this.value;save();render()">
+                                    oninput="state.list[${i}].lv[${li}]=this.value;save()">
                                 </div>`).join('')}
                         </div>
                         <div class="progress-container">
-                            <div class="progress-bar" style="width:${prog}%; background:${prog>=100?'#48c78e':'#3e8ed0'}"></div>
+                            <div class="progress-bar" style="width:${prog}%; background:${prog>=100?'#00d1b2':'#3e8ed0'}"></div>
                         </div>
-                        <button class="button is-ghost is-small p-0 has-text-danger" onclick="remove(${i})">Remove</button>
+                        <button class="button is-ghost is-small p-0 has-text-danger mt-1" onclick="remove(${i})">Remove</button>
                     </div>
                 </div>`;
         });
@@ -134,7 +166,7 @@
     function add() { 
         const t = document.getElementById('tick').value.toUpperCase(); 
         if(t) { 
-            list.unshift({t, lv:[0,0,0,0], p:null}); 
+            state.list.unshift({t, lv:[0,0,0,0], p:null}); 
             document.getElementById('tick').value = '';
             save(); 
             render(); 
@@ -142,7 +174,7 @@
     }
 
     function remove(index) {
-        list.splice(index, 1);
+        state.list.splice(index, 1);
         save();
         render();
     }
@@ -151,23 +183,27 @@
         const btn = document.getElementById('ref-btn'); 
         btn.classList.add('is-loading');
         try {
-            const tickers = list.map(i => i.t).join(',');
+            const tickers = state.list.map(i => i.t).join(',');
             const res = await fetch(`/api/prices?symbols=${tickers}`);
             const data = await res.json();
-            list.forEach(item => { 
-                if(data[item.t]) item.p = parseFloat(data[item.t].price); 
-                else if (data.price && list.length === 1) item.p = parseFloat(data.price); // Handle single stock response
+            
+            state.list.forEach(item => {
+                // API can return an object for multiple or single ticker
+                const val = (state.list.length === 1) ? data : data[item.t];
+                if(val && val.price) item.p = parseFloat(val.price);
             });
+            
             save();
             render();
         } catch(e) {
-            console.error(e);
+            console.error("Refresh error", e);
         } finally { 
             btn.classList.remove('is-loading'); 
         }
     }
 
-    draw();
+    // INITIALIZE ON LOAD
+    window.onload = loadState;
 </script>
 </body>
 </html>
