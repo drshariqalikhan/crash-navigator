@@ -6,53 +6,47 @@
     <title>Crash Navigator</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
     <style>
-        :root { --bg: #0a0a0a; --card: #141414; --border: #262626; --emerald: #00d1b2; --blue: #3e8ed0; --danger: #f14668; }
-        body { background-color: var(--bg); color: #fff; min-height: 100vh; font-family: system-ui, -apple-system, sans-serif; overflow-x: hidden; }
-        .card { background-color: var(--card); border: 1px solid var(--border); color: #fff; border-radius: 1.25rem; }
-        .input { background-color: #000; border-color: var(--border); color: #fff; border-radius: 0.5rem; }
-        .input:focus { border-color: var(--emerald); box-shadow: none; }
+        :root { --bg: #000000; --card: #111111; --border: #222222; --emerald: #00d1b2; --danger: #ff3860; --text: #e0e0e0; }
+        body { background-color: var(--bg); color: var(--text); min-height: 100vh; font-family: system-ui, -apple-system, sans-serif; }
         
-        /* Layout */
+        .card { background-color: var(--card); border: 1px solid var(--border); color: #fff; border-radius: 1rem; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
+        .input { background-color: #080808; border-color: var(--border); color: #fff; border-radius: 0.5rem; }
+        .input:focus { border-color: var(--emerald); box-shadow: 0 0 0 1px var(--emerald); }
+        
+        /* Tabs and Navigation */
         .tab-content { display: none; }
         .tab-content.is-active { display: block; }
-        .nav-btn { background: transparent; border: none; color: #888; font-weight: bold; padding: 10px 15px; cursor: pointer; border-radius: 10px; font-size: 0.9rem; }
+        .nav-btn { background: #1a1a1a; border: none; color: #666; font-weight: bold; padding: 12px 20px; cursor: pointer; border-radius: 8px; transition: 0.3s; }
         .nav-btn.active { background: var(--emerald); color: #000; }
 
-        /* --- Vertical Progress Scale --- */
-        .scale-wrapper { display: flex; height: 220px; gap: 20px; align-items: stretch; margin-top: 10px; }
-        
-        /* The 0-5 Labels */
-        .scale-axis { display: flex; flex-direction: column; justify-content: space-between; align-items: flex-end; width: 25px; color: #555; font-weight: bold; font-size: 0.8rem; padding: 5px 0; }
-        
-        /* The Progress Bar Column */
-        .progress-v-track { width: 16px; background: #000; border: 1px solid var(--border); border-radius: 4px; position: relative; }
-        .progress-v-fill { 
-            position: absolute; bottom: 0; width: 100%; 
-            background: linear-gradient(to top, var(--danger), var(--emerald)); 
-            transition: height 0.8s cubic-bezier(0.1, 0, 0.3, 1); 
-            border-radius: 3px;
-        }
-        
-        /* Level Inputs Side */
-        .level-inputs { flex-grow: 1; display: flex; flex-direction: column; justify-content: space-between; }
-        .level-group { display: flex; align-items: center; gap: 10px; }
-        .level-tag { font-size: 0.65rem; color: #666; width: 25px; text-transform: uppercase; }
-        .level-input { height: 32px !important; font-size: 0.85rem !important; }
+        /* Strategy Table Dark Theme */
+        .table { background-color: transparent; color: var(--text); width: 100%; }
+        .table thead th { color: #555; border-bottom: 2px solid var(--border); text-transform: uppercase; font-size: 0.7rem; }
+        .table td { border-bottom: 1px solid var(--border); padding: 0.75rem 0.5rem; vertical-align: middle; }
+        .table tr:last-child td { border-bottom: none; }
 
-        .current-marker {
-            position: absolute; left: -8px; right: -8px; height: 2px; background: #fff;
-            box-shadow: 0 0 10px #fff; z-index: 5; transition: bottom 0.8s;
-        }
+        /* 0-5 Vertical Scale UI */
+        .scale-wrapper { display: flex; height: 220px; gap: 15px; align-items: stretch; margin-top: 10px; }
+        .scale-axis { display: flex; flex-direction: column; justify-content: space-between; align-items: flex-end; width: 20px; color: #444; font-weight: bold; font-size: 0.75rem; }
+        .progress-v-track { width: 14px; background: #080808; border: 1px solid var(--border); border-radius: 10px; position: relative; overflow: hidden; }
+        .progress-v-fill { position: absolute; bottom: 0; width: 100%; background: linear-gradient(to top, var(--danger), var(--emerald)); transition: height 0.8s ease; }
+        .current-marker { position: absolute; left: -5px; right: -5px; height: 2px; background: #fff; box-shadow: 0 0 10px #fff; z-index: 5; transition: bottom 0.8s; }
+        .level-inputs { flex-grow: 1; display: flex; flex-direction: column; justify-content: space-between; }
+        .level-group { display: flex; align-items: center; gap: 8px; }
+        .level-tag { font-size: 0.6rem; color: #555; width: 35px; text-transform: uppercase; font-weight: bold; }
+        .level-input { height: 30px !important; font-size: 0.8rem !important; background: #000 !important; }
+
+        .has-text-emerald { color: var(--emerald) !important; }
     </style>
 </head>
 <body>
 <div class="container p-4">
     <div class="is-flex is-justify-content-between is-align-items-center mb-5">
         <div>
-            <h1 class="title is-5 has-text-white mb-0">Crash Navigator</h1>
-            <span class="tag is-black has-text-grey">v5.0 Scale System</span>
+            <h1 class="title is-4 has-text-white mb-0">Crash Navigator</h1>
+            <p class="is-size-7 has-text-grey">v6.0 Full Deployment Mode</p>
         </div>
-        <div class="buttons has-background-black-ter p-1" style="border-radius: 12px;">
+        <div class="buttons has-background-black p-1" style="border-radius: 10px; border: 1px solid #222;">
             <button id="btn-strat" class="nav-btn active" onclick="tab('strat')">Strategy</button>
             <button id="btn-shop" class="nav-btn" onclick="tab('shop')">Shopping</button>
         </div>
@@ -63,29 +57,38 @@
         <div class="card p-5 mb-4">
             <div class="columns is-mobile">
                 <div class="column">
-                    <label class="label has-text-grey is-small">Cash</label>
-                    <input class="input" type="number" id="cash" oninput="updateStrategy()">
+                    <label class="label has-text-grey is-size-7">Total Cash</label>
+                    <input class="input is-medium" type="number" id="cash" oninput="updateStrategy()">
                 </div>
                 <div class="column">
-                    <label class="label has-text-grey is-small">Drop %</label>
-                    <input class="input" type="number" id="drop" oninput="updateStrategy()">
+                    <label class="label has-text-grey is-size-7">Current Drop %</label>
+                    <input class="input is-medium" type="number" id="drop" oninput="updateStrategy()">
                 </div>
             </div>
         </div>
-        <div class="card" style="overflow-x: auto;">
-            <table class="table is-fullwidth">
-                <thead><tr><th>Drop</th><th>Target %</th><th class="has-text-right">Deploy</th></tr></thead>
-                <tbody id="out" class="is-size-7"></tbody>
-            </table>
+        <div class="card">
+            <div style="overflow-x: auto;">
+                <table class="table is-narrow">
+                    <thead>
+                        <tr>
+                            <th>Drop</th>
+                            <th>Target %</th>
+                            <th class="has-text-right">Deploy Now</th>
+                            <th class="has-text-right">Cumulative</th>
+                        </tr>
+                    </thead>
+                    <tbody id="out" class="is-size-7"></tbody>
+                </table>
+            </div>
         </div>
     </div>
 
     <!-- Shopping Tab -->
     <div id="tab-shop" class="tab-content">
         <div class="field has-addons mb-5">
-            <div class="control is-expanded"><input id="tick" class="input" placeholder="Ticker..."></div>
-            <div class="control"><button class="button is-primary" onclick="add()">Add</button></div>
-            <div class="control ml-2"><button id="ref-btn" class="button is-dark" onclick="refresh()">Update</button></div>
+            <div class="control is-expanded"><input id="tick" class="input" placeholder="Ticker (e.g. TSLA)..."></div>
+            <div class="control"><button class="button is-primary" onclick="add()">Add +</button></div>
+            <div class="control ml-2"><button id="ref-btn" class="button is-dark" onclick="refresh()">Refresh</button></div>
         </div>
         <div id="list" class="columns is-multiline is-mobile"></div>
     </div>
@@ -95,11 +98,11 @@
     let state = {
         cash: 10000,
         drop: 0,
-        list: [{ t: 'NVDA', lv: [130, 115, 100, 90], p: 105 }]
+        list: [{ t: 'NVDA', lv: [130, 115, 100, 90], p: null }]
     };
 
     function loadState() {
-        const saved = localStorage.getItem('crash_navigator_v5');
+        const saved = localStorage.getItem('crash_navigator_v6');
         if (saved) state = JSON.parse(saved);
         document.getElementById('cash').value = state.cash;
         document.getElementById('drop').value = state.drop;
@@ -107,7 +110,7 @@
         render();
     }
 
-    function save() { localStorage.setItem('crash_navigator_v5', JSON.stringify(state)); }
+    function save() { localStorage.setItem('crash_navigator_v6', JSON.stringify(state)); }
 
     function updateStrategy() {
         state.cash = parseFloat(document.getElementById('cash').value) || 0;
@@ -116,7 +119,6 @@
         draw();
     }
 
-    // Fixed Keyboard Closure: Update data without re-rendering HTML
     function updateLevel(sIdx, lIdx, val) {
         state.list[sIdx].lv[lIdx] = parseFloat(val) || 0;
         save();
@@ -130,17 +132,34 @@
         if(t === 'shop') render();
     }
 
+    // Logistic function for deployment: reaches 100% target around 45-50% drop
     function calc(d) { return d < 27 ? d + 10 : (2.75 * d) - 25.64; }
 
     function draw() {
         const b = document.getElementById('out'); b.innerHTML = '';
-        let prev = 0;
-        for(let i=0; i<12; i++) {
-            const curD = state.drop + (i*2);
-            const target = Math.min(100, calc(curD));
-            const inc = i===0 ? target : Math.max(0, target-prev);
-            b.innerHTML += `<tr><td>-${curD}%</td><td>${target.toFixed(1)}%</td><td class="has-text-right has-text-primary">$${((inc/100)*state.cash).toLocaleString(undefined, {maximumFractionDigits:0})}</td></tr>`;
-            prev = target;
+        let prevTarget = 0;
+        let target = 0;
+        let i = 0;
+
+        // Loop until all cash (100%) is deployed
+        while (target < 100 && i < 40) { 
+            const curDrop = state.drop + (i * 2);
+            target = Math.min(100, calc(curDrop));
+            const incrementPct = target - prevTarget;
+            const deployNow = (incrementPct / 100) * state.cash;
+            const cumulative = (target / 100) * state.cash;
+
+            if (deployNow >= 0) {
+                b.innerHTML += `<tr>
+                    <td><strong class="has-text-white">-${curDrop}%</strong></td>
+                    <td>${target.toFixed(1)}%</td>
+                    <td class="has-text-right has-text-emerald">$${deployNow.toLocaleString(undefined, {maximumFractionDigits:0})}</td>
+                    <td class="has-text-right has-text-grey">$${cumulative.toLocaleString(undefined, {maximumFractionDigits:0})}</td>
+                </tr>`;
+            }
+
+            prevTarget = target;
+            i++;
         }
     }
 
@@ -150,40 +169,33 @@
         state.list.forEach((item, i) => {
             const L4 = parseFloat(item.lv[3]) || 0;
             const L1 = parseFloat(item.lv[0]) || 0;
-            // "5" level is L1 + 20% of the L1-L4 range
             const topLevel = L1 + ((L1 - L4) * 0.2); 
             const range = topLevel - L4;
-            const currentP = parseFloat(item.p) || 0;
-            
-            // Map price to 0-100% for the bar
-            let prog = 0;
-            if (range > 0) {
-                prog = ((currentP - L4) / range) * 100;
-                prog = Math.max(0, Math.min(100, prog));
-            }
+            let prog = (range > 0 && item.p) ? Math.max(0, Math.min(100, ((parseFloat(item.p) - L4) / range) * 100)) : 0;
 
             g.innerHTML += `
                 <div class="column is-12-mobile is-4-desktop">
                     <div class="card p-4">
-                        <div class="is-flex is-justify-content-between align-items-center mb-1">
-                            <strong class="is-size-4">${item.t}</strong>
-                            <span class="has-text-primary is-size-4 weight-bold">${item.p ? '$'+item.p : '--'}</span>
+                        <div class="is-flex is-justify-content-between mb-1">
+                            <strong class="is-size-4 has-text-white">${item.t}</strong>
+                            <span class="has-text-emerald is-size-4 weight-bold">${item.p ? '$'+item.p : '---'}</span>
                         </div>
-                        <div class="mb-3"><button class="button is-ghost is-small p-0 has-text-danger" onclick="remove(${i})">Delete Ticker</button></div>
+                        <div class="mb-4"><button class="button is-ghost is-small p-0 has-text-danger" onclick="remove(${i})">Remove Ticker</button></div>
 
                         <div class="scale-wrapper">
-                            <div class="scale-axis">
-                                <span>5</span><span>4</span><span>3</span><span>2</span><span>1</span><span>0</span>
-                            </div>
+                            <div class="scale-axis"><span>5</span><span>4</span><span>3</span><span>2</span><span>1</span><span>0</span></div>
                             <div class="progress-v-track">
                                 <div class="progress-v-fill" style="height: ${prog}%"></div>
                                 ${item.p ? `<div class="current-marker" style="bottom: ${prog}%"></div>` : ''}
                             </div>
                             <div class="level-inputs">
-                                <div class="level-group"><span class="level-tag">Entry</span><input class="input level-input" type="number" value="${item.lv[0]}" oninput="updateLevel(${i},0,this.value)" onchange="render()"></div>
-                                <div class="level-group"><span class="level-tag">DCA 1</span><input class="input level-input" type="number" value="${item.lv[1]}" oninput="updateLevel(${i},1,this.value)" onchange="render()"></div>
-                                <div class="level-group"><span class="level-tag">DCA 2</span><input class="input level-input" type="number" value="${item.lv[2]}" oninput="updateLevel(${i},2,this.value)" onchange="render()"></div>
-                                <div class="level-group"><span class="level-tag">Floor</span><input class="input level-input" type="number" value="${item.lv[3]}" oninput="updateLevel(${i},3,this.value)" onchange="render()"></div>
+                                ${['Entry', 'DCA 1', 'DCA 2', 'Floor'].map((label, li) => `
+                                    <div class="level-group">
+                                        <span class="level-tag">${label}</span>
+                                        <input class="input level-input" type="number" value="${item.lv[li]}" 
+                                        oninput="updateLevel(${i}, ${li}, this.value)" onchange="render()">
+                                    </div>
+                                `).join('')}
                             </div>
                         </div>
                     </div>
@@ -191,25 +203,39 @@
         });
     }
 
-    function add() { 
-        const t = document.getElementById('tick').value.toUpperCase(); 
-        if(t) { state.list.unshift({t, lv:[0,0,0,0], p:null}); document.getElementById('tick').value = ''; save(); render(); } 
+    async function add() { 
+        const t = document.getElementById('tick').value.toUpperCase().trim(); 
+        if(t) { 
+            state.list.unshift({t, lv:[0,0,0,0], p:null}); 
+            document.getElementById('tick').value = ''; 
+            save(); 
+            render();
+            await refresh(); // Immediately fetch price for the new ticker
+        } 
     }
 
-    function remove(i) { if(confirm('Remove?')) { state.list.splice(i, 1); save(); render(); } }
+    function remove(i) { state.list.splice(i, 1); save(); render(); }
     
     async function refresh() {
-        const btn = document.getElementById('ref-btn'); btn.classList.add('is-loading');
+        const btn = document.getElementById('ref-btn'); 
+        btn.classList.add('is-loading');
         try {
             const tickers = state.list.map(i => i.t).join(',');
+            if(!tickers) return;
             const res = await fetch(`/api/prices?symbols=${tickers}`);
             const data = await res.json();
+            
             state.list.forEach(item => {
                 const val = (state.list.length === 1) ? data : data[item.t];
                 if(val && val.price) item.p = parseFloat(val.price).toFixed(2);
             });
-            save(); render();
-        } catch(e) { console.error(e); } finally { btn.classList.remove('is-loading'); }
+            save(); 
+            render();
+        } catch(e) { 
+            console.error("API Error:", e); 
+        } finally { 
+            btn.classList.remove('is-loading'); 
+        }
     }
 
     window.onload = loadState;
