@@ -6,36 +6,51 @@
     <title>Crash Navigator</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
     <style>
-        :root { --bg: #0a0a0a; --card: #141414; --border: #262626; --emerald: #00d1b2; --blue: #3e8ed0; }
-        body { background-color: var(--bg); color: #fff; min-height: 100vh; font-family: system-ui, -apple-system, sans-serif; }
+        :root { --bg: #0a0a0a; --card: #141414; --border: #262626; --emerald: #00d1b2; --blue: #3e8ed0; --danger: #f14668; }
+        body { background-color: var(--bg); color: #fff; min-height: 100vh; font-family: system-ui, -apple-system, sans-serif; overflow-x: hidden; }
         .card { background-color: var(--card); border: 1px solid var(--border); color: #fff; border-radius: 1.25rem; }
         .input { background-color: #000; border-color: var(--border); color: #fff; border-radius: 0.5rem; }
         .input:focus { border-color: var(--emerald); box-shadow: none; }
-        .table { background-color: transparent; color: #fff; width: 100%; }
-        .table thead th { color: #666; border-bottom: 1px solid var(--border); text-transform: uppercase; font-size: 0.75rem; }
-        .table td { border-bottom: 1px solid var(--border); padding: 0.75rem; }
+        
+        /* Layout */
         .tab-content { display: none; }
         .tab-content.is-active { display: block; }
-        .nav-btn { background: transparent; border: none; color: #888; font-weight: bold; padding: 10px 20px; cursor: pointer; border-radius: 10px; }
+        .nav-btn { background: transparent; border: none; color: #888; font-weight: bold; padding: 10px 15px; cursor: pointer; border-radius: 10px; font-size: 0.9rem; }
         .nav-btn.active { background: var(--emerald); color: #000; }
 
-        /* Thermometer UI */
-        .thermometer-container { display: flex; align-items: stretch; height: 180px; padding: 10px 0; gap: 15px; }
-        .thermo-track { width: 14px; background: #000; border: 1px solid var(--border); border-radius: 20px; position: relative; overflow: hidden; }
-        .thermo-fill { position: absolute; bottom: 0; width: 100%; background: linear-gradient(to top, var(--emerald), var(--blue)); transition: height 0.6s ease; border-radius: 20px; }
-        .thermo-labels { display: flex; flex-direction: column; justify-content: space-between; flex-grow: 1; }
-        .level-row { display: flex; align-items: center; gap: 8px; height: 24px; }
-        .level-row span { font-size: 0.7rem; color: #666; width: 22px; }
-        .level-input { height: 24px !important; font-size: 0.75rem !important; padding: 2px 5px !important; }
-        .current-price-marker { position: absolute; left: -5px; right: -5px; height: 2px; background: white; box-shadow: 0 0 8px #fff; z-index: 2; transition: bottom 0.6s; }
+        /* --- Vertical Progress Scale --- */
+        .scale-wrapper { display: flex; height: 220px; gap: 20px; align-items: stretch; margin-top: 10px; }
+        
+        /* The 0-5 Labels */
+        .scale-axis { display: flex; flex-direction: column; justify-content: space-between; align-items: flex-end; width: 25px; color: #555; font-weight: bold; font-size: 0.8rem; padding: 5px 0; }
+        
+        /* The Progress Bar Column */
+        .progress-v-track { width: 16px; background: #000; border: 1px solid var(--border); border-radius: 4px; position: relative; }
+        .progress-v-fill { 
+            position: absolute; bottom: 0; width: 100%; 
+            background: linear-gradient(to top, var(--danger), var(--emerald)); 
+            transition: height 0.8s cubic-bezier(0.1, 0, 0.3, 1); 
+            border-radius: 3px;
+        }
+        
+        /* Level Inputs Side */
+        .level-inputs { flex-grow: 1; display: flex; flex-direction: column; justify-content: space-between; }
+        .level-group { display: flex; align-items: center; gap: 10px; }
+        .level-tag { font-size: 0.65rem; color: #666; width: 25px; text-transform: uppercase; }
+        .level-input { height: 32px !important; font-size: 0.85rem !important; }
+
+        .current-marker {
+            position: absolute; left: -8px; right: -8px; height: 2px; background: #fff;
+            box-shadow: 0 0 10px #fff; z-index: 5; transition: bottom 0.8s;
+        }
     </style>
 </head>
 <body>
 <div class="container p-4">
     <div class="is-flex is-justify-content-between is-align-items-center mb-5">
         <div>
-            <h1 class="title is-4 has-text-white mb-1">Crash Navigator</h1>
-            <p class="subtitle is-7 has-text-grey">Secure Thermometer v4</p>
+            <h1 class="title is-5 has-text-white mb-0">Crash Navigator</h1>
+            <span class="tag is-black has-text-grey">v5.0 Scale System</span>
         </div>
         <div class="buttons has-background-black-ter p-1" style="border-radius: 12px;">
             <button id="btn-strat" class="nav-btn active" onclick="tab('strat')">Strategy</button>
@@ -43,27 +58,34 @@
         </div>
     </div>
 
+    <!-- Strategy Tab -->
     <div id="tab-strat" class="tab-content is-active">
-        <div class="columns">
-            <div class="column is-4">
-                <div class="card p-5 mb-4">
-                    <label class="label has-text-grey is-small">Cash to Deploy</label>
-                    <input class="input is-medium" type="number" id="cash" value="10000" oninput="updateStrategy()">
-                    <label class="label has-text-grey is-small mt-4">Current Drop %</label>
-                    <input class="input is-medium" type="number" id="drop" value="0" oninput="updateStrategy()">
+        <div class="card p-5 mb-4">
+            <div class="columns is-mobile">
+                <div class="column">
+                    <label class="label has-text-grey is-small">Cash</label>
+                    <input class="input" type="number" id="cash" oninput="updateStrategy()">
+                </div>
+                <div class="column">
+                    <label class="label has-text-grey is-small">Drop %</label>
+                    <input class="input" type="number" id="drop" oninput="updateStrategy()">
                 </div>
             </div>
-            <div class="column is-8">
-                <div class="card" style="overflow-x: auto;"><table class="table"><thead><tr><th>Drop %</th><th>Target %</th><th class="has-text-right">Deploy</th></tr></thead><tbody id="out"></tbody></table></div>
-            </div>
+        </div>
+        <div class="card" style="overflow-x: auto;">
+            <table class="table is-fullwidth">
+                <thead><tr><th>Drop</th><th>Target %</th><th class="has-text-right">Deploy</th></tr></thead>
+                <tbody id="out" class="is-size-7"></tbody>
+            </table>
         </div>
     </div>
 
+    <!-- Shopping Tab -->
     <div id="tab-shop" class="tab-content">
         <div class="field has-addons mb-5">
             <div class="control is-expanded"><input id="tick" class="input" placeholder="Ticker..."></div>
             <div class="control"><button class="button is-primary" onclick="add()">Add</button></div>
-            <div class="control ml-2"><button id="ref-btn" class="button is-dark" onclick="refresh()">Refresh</button></div>
+            <div class="control ml-2"><button id="ref-btn" class="button is-dark" onclick="refresh()">Update</button></div>
         </div>
         <div id="list" class="columns is-multiline is-mobile"></div>
     </div>
@@ -73,25 +95,20 @@
     let state = {
         cash: 10000,
         drop: 0,
-        list: [{ t: 'NVDA', lv: [140, 120, 100, 90], p: null }]
+        list: [{ t: 'NVDA', lv: [130, 115, 100, 90], p: 105 }]
     };
 
     function loadState() {
-        const saved = localStorage.getItem('crash_navigator_v4');
-        if (saved) {
-            state = JSON.parse(saved);
-            document.getElementById('cash').value = state.cash;
-            document.getElementById('drop').value = state.drop;
-        }
+        const saved = localStorage.getItem('crash_navigator_v5');
+        if (saved) state = JSON.parse(saved);
+        document.getElementById('cash').value = state.cash;
+        document.getElementById('drop').value = state.drop;
         draw();
         render();
     }
 
-    function save() {
-        localStorage.setItem('crash_navigator_v4', JSON.stringify(state));
-    }
+    function save() { localStorage.setItem('crash_navigator_v5', JSON.stringify(state)); }
 
-    // This updates the Strategy values immediately
     function updateStrategy() {
         state.cash = parseFloat(document.getElementById('cash').value) || 0;
         state.drop = parseFloat(document.getElementById('drop').value) || 0;
@@ -99,10 +116,9 @@
         draw();
     }
 
-    // This updates stock level data in the background WITHOUT redrawing the HTML
-    // This prevents the keyboard from closing
-    function updateLevel(stockIdx, levelIdx, val) {
-        state.list[stockIdx].lv[levelIdx] = val;
+    // Fixed Keyboard Closure: Update data without re-rendering HTML
+    function updateLevel(sIdx, lIdx, val) {
+        state.list[sIdx].lv[lIdx] = parseFloat(val) || 0;
         save();
     }
 
@@ -119,11 +135,11 @@
     function draw() {
         const b = document.getElementById('out'); b.innerHTML = '';
         let prev = 0;
-        for(let i=0; i<15; i++) {
+        for(let i=0; i<12; i++) {
             const curD = state.drop + (i*2);
             const target = Math.min(100, calc(curD));
             const inc = i===0 ? target : Math.max(0, target-prev);
-            b.innerHTML += `<tr><td><strong>-${curD}%</strong></td><td>${target.toFixed(1)}%</td><td class="has-text-right has-text-primary">$${((inc/100)*state.cash).toLocaleString(undefined, {maximumFractionDigits:0})}</td></tr>`;
+            b.innerHTML += `<tr><td>-${curD}%</td><td>${target.toFixed(1)}%</td><td class="has-text-right has-text-primary">$${((inc/100)*state.cash).toLocaleString(undefined, {maximumFractionDigits:0})}</td></tr>`;
             prev = target;
         }
     }
@@ -132,34 +148,42 @@
         const g = document.getElementById('list'); 
         g.innerHTML = '';
         state.list.forEach((item, i) => {
-            const range = item.lv[0] - item.lv[3];
-            const prog = (range > 0 && item.p) ? Math.max(0, Math.min(100, ((item.lv[0] - item.p) / range) * 100)) : 0;
+            const L4 = parseFloat(item.lv[3]) || 0;
+            const L1 = parseFloat(item.lv[0]) || 0;
+            // "5" level is L1 + 20% of the L1-L4 range
+            const topLevel = L1 + ((L1 - L4) * 0.2); 
+            const range = topLevel - L4;
+            const currentP = parseFloat(item.p) || 0;
+            
+            // Map price to 0-100% for the bar
+            let prog = 0;
+            if (range > 0) {
+                prog = ((currentP - L4) / range) * 100;
+                prog = Math.max(0, Math.min(100, prog));
+            }
 
             g.innerHTML += `
                 <div class="column is-12-mobile is-4-desktop">
                     <div class="card p-4">
-                        <div class="is-flex is-justify-content-between align-items-center mb-3">
-                            <strong class="is-size-5">${item.t}</strong>
-                            <div class="has-text-right">
-                                <p class="is-size-4 has-text-primary weight-bold mb-0">${item.p ? '$'+item.p : '--'}</p>
-                                <button class="button is-ghost is-small p-0 has-text-danger" onclick="remove(${i})">Remove</button>
-                            </div>
+                        <div class="is-flex is-justify-content-between align-items-center mb-1">
+                            <strong class="is-size-4">${item.t}</strong>
+                            <span class="has-text-primary is-size-4 weight-bold">${item.p ? '$'+item.p : '--'}</span>
                         </div>
+                        <div class="mb-3"><button class="button is-ghost is-small p-0 has-text-danger" onclick="remove(${i})">Delete Ticker</button></div>
 
-                        <div class="thermometer-container">
-                            <div class="thermo-track">
-                                <div class="thermo-fill" style="height: ${prog}%"></div>
-                                ${item.p ? `<div class="current-price-marker" style="bottom: ${prog}%"></div>` : ''}
+                        <div class="scale-wrapper">
+                            <div class="scale-axis">
+                                <span>5</span><span>4</span><span>3</span><span>2</span><span>1</span><span>0</span>
                             </div>
-                            <div class="thermo-labels">
-                                ${item.lv.map((v, li) => `
-                                    <div class="level-row">
-                                        <span>L${li+1}</span>
-                                        <input class="input is-small level-input" type="number" value="${v}" 
-                                        oninput="updateLevel(${i}, ${li}, this.value)"
-                                        onchange="render()">
-                                    </div>
-                                `).join('')}
+                            <div class="progress-v-track">
+                                <div class="progress-v-fill" style="height: ${prog}%"></div>
+                                ${item.p ? `<div class="current-marker" style="bottom: ${prog}%"></div>` : ''}
+                            </div>
+                            <div class="level-inputs">
+                                <div class="level-group"><span class="level-tag">Entry</span><input class="input level-input" type="number" value="${item.lv[0]}" oninput="updateLevel(${i},0,this.value)" onchange="render()"></div>
+                                <div class="level-group"><span class="level-tag">DCA 1</span><input class="input level-input" type="number" value="${item.lv[1]}" oninput="updateLevel(${i},1,this.value)" onchange="render()"></div>
+                                <div class="level-group"><span class="level-tag">DCA 2</span><input class="input level-input" type="number" value="${item.lv[2]}" oninput="updateLevel(${i},2,this.value)" onchange="render()"></div>
+                                <div class="level-group"><span class="level-tag">Floor</span><input class="input level-input" type="number" value="${item.lv[3]}" oninput="updateLevel(${i},3,this.value)" onchange="render()"></div>
                             </div>
                         </div>
                     </div>
@@ -169,18 +193,13 @@
 
     function add() { 
         const t = document.getElementById('tick').value.toUpperCase(); 
-        if(t) { 
-            state.list.unshift({t, lv:[0,0,0,0], p:null}); 
-            document.getElementById('tick').value = '';
-            save(); render(); 
-        } 
+        if(t) { state.list.unshift({t, lv:[0,0,0,0], p:null}); document.getElementById('tick').value = ''; save(); render(); } 
     }
 
-    function remove(i) { state.list.splice(i, 1); save(); render(); }
+    function remove(i) { if(confirm('Remove?')) { state.list.splice(i, 1); save(); render(); } }
     
     async function refresh() {
-        const btn = document.getElementById('ref-btn'); 
-        btn.classList.add('is-loading');
+        const btn = document.getElementById('ref-btn'); btn.classList.add('is-loading');
         try {
             const tickers = state.list.map(i => i.t).join(',');
             const res = await fetch(`/api/prices?symbols=${tickers}`);
