@@ -6,20 +6,71 @@
     <title>Crash Navigator</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
     <style>
-        :root { --bg: #0a0a0a; --card: #141414; --border: #262626; --emerald: #00d1b2; }
+        :root { --bg: #0a0a0a; --card: #141414; --border: #262626; --emerald: #00d1b2; --blue: #3e8ed0; }
         body { background-color: var(--bg); color: #fff; min-height: 100vh; font-family: system-ui, -apple-system, sans-serif; }
         .card { background-color: var(--card); border: 1px solid var(--border); color: #fff; border-radius: 1.25rem; }
-        .input { background-color: #000; border-color: var(--border); color: #fff; border-radius: 0.75rem; }
+        .input { background-color: #000; border-color: var(--border); color: #fff; border-radius: 0.5rem; }
         .input:focus { border-color: var(--emerald); box-shadow: none; }
+        
+        /* Table Styles */
         .table { background-color: transparent; color: #fff; width: 100%; }
         .table thead th { color: #666; border-bottom: 1px solid var(--border); text-transform: uppercase; font-size: 0.75rem; }
-        .table td { border-bottom: 1px solid var(--border); padding: 1rem; }
-        .progress-container { background: #000; border-radius: 20px; height: 10px; overflow: hidden; border: 1px solid var(--border); margin: 10px 0; }
-        .progress-bar { height: 100%; transition: width 1s ease; }
+        .table td { border-bottom: 1px solid var(--border); padding: 0.75rem; }
+
+        /* Navigation */
         .tab-content { display: none; }
         .tab-content.is-active { display: block; }
         .nav-btn { background: transparent; border: none; color: #888; font-weight: bold; padding: 10px 20px; cursor: pointer; border-radius: 10px; }
         .nav-btn.active { background: var(--emerald); color: #000; }
+
+        /* --- Thermometer Styles --- */
+        .thermometer-container {
+            display: flex;
+            align-items: stretch;
+            height: 180px; /* Fixed height for the scale */
+            padding: 10px 0;
+            gap: 15px;
+        }
+        .thermo-track {
+            width: 14px;
+            background: #000;
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+        .thermo-fill {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            background: linear-gradient(to top, var(--emerald), var(--blue));
+            transition: height 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            border-radius: 20px;
+        }
+        .thermo-labels {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            flex-grow: 1;
+        }
+        .level-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            height: 24px;
+        }
+        .level-row span { font-size: 0.7rem; color: #666; width: 20px; }
+        .level-input { height: 24px !important; font-size: 0.75rem !important; padding: 2px 5px !important; }
+        .current-price-marker {
+            position: absolute;
+            left: -5px;
+            right: -5px;
+            height: 2px;
+            background: white;
+            box-shadow: 0 0 8px #fff;
+            z-index: 2;
+            transition: bottom 0.6s;
+        }
     </style>
 </head>
 <body>
@@ -27,7 +78,7 @@
     <div class="is-flex is-justify-content-between is-align-items-center mb-5">
         <div>
             <h1 class="title is-4 has-text-white mb-1">Crash Navigator</h1>
-            <p class="subtitle is-7 has-text-grey">Secure Deployment v2</p>
+            <p class="subtitle is-7 has-text-grey">Secure Thermometer v3</p>
         </div>
         <div class="buttons has-background-black-ter p-1" style="border-radius: 12px;">
             <button id="btn-strat" class="nav-btn active" onclick="tab('strat')">Strategy</button>
@@ -64,34 +115,32 @@
         <div class="field has-addons mb-5">
             <div class="control is-expanded"><input id="tick" class="input" placeholder="Ticker..."></div>
             <div class="control"><button class="button is-primary" onclick="add()">Add</button></div>
-            <div class="control ml-2"><button id="ref-btn" class="button is-dark" onclick="refresh()">Refresh</button></div>
+            <div class="control ml-2"><button id="ref-btn" class="button is-dark" onclick="refresh()">Refresh Prices</button></div>
         </div>
         <div id="list" class="columns is-multiline is-mobile"></div>
     </div>
 </div>
 
 <script>
-    // 1. GLOBAL STATE
     let state = {
         cash: 10000,
         drop: 0,
-        list: ['AAPL', 'MSFT', 'NVDA', 'AMZN'].map(t => ({ t, lv: [0,0,0,0], p: null }))
+        list: [{ t: 'NVDA', lv: [140, 120, 100, 90], p: null }]
     };
 
-    // 2. PERSISTENCE LOGIC
     function loadState() {
-        const saved = localStorage.getItem('crash_navigator_v2');
+        const saved = localStorage.getItem('crash_navigator_v3');
         if (saved) {
-            try {
-                const parsed = JSON.parse(saved);
-                state = { ...state, ...parsed }; // Merge saved data over defaults
-            } catch (e) { console.error("Load failed", e); }
+            state = JSON.parse(saved);
+            document.getElementById('cash').value = state.cash;
+            document.getElementById('drop').value = state.drop;
         }
-        // Push state into UI inputs
-        document.getElementById('cash').value = state.cash;
-        document.getElementById('drop').value = state.drop;
         draw();
         render();
+    }
+
+    function save() {
+        localStorage.setItem('crash_navigator_v3', JSON.stringify(state));
     }
 
     function updateState() {
@@ -101,11 +150,6 @@
         draw();
     }
 
-    function save() {
-        localStorage.setItem('crash_navigator_v2', JSON.stringify(state));
-    }
-
-    // 3. NAVIGATION
     function tab(t) {
         document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('is-active'));
         document.getElementById('tab-'+t).classList.add('is-active');
@@ -113,51 +157,56 @@
         document.getElementById('btn-shop').classList.toggle('active', t==='shop');
     }
 
-    // 4. STRATEGY MATH
     function calc(d) { return d < 27 ? d + 10 : (2.75 * d) - 25.64; }
 
     function draw() {
-        const b = document.getElementById('out'); 
-        b.innerHTML = '';
+        const b = document.getElementById('out'); b.innerHTML = '';
         let prev = 0;
         for(let i=0; i<15; i++) {
             const curD = state.drop + (i*2);
             const target = Math.min(100, calc(curD));
             const inc = i===0 ? target : Math.max(0, target-prev);
-            b.innerHTML += `<tr>
-                <td><strong>-${curD}%</strong></td>
-                <td>${target.toFixed(1)}%</td>
-                <td class="has-text-right has-text-primary">$${((inc/100)*state.cash).toLocaleString(undefined, {maximumFractionDigits:0})}</td>
-            </tr>`;
+            b.innerHTML += `<tr><td><strong>-${curD}%</strong></td><td>${target.toFixed(1)}%</td><td class="has-text-right has-text-primary">$${((inc/100)*state.cash).toLocaleString(undefined, {maximumFractionDigits:0})}</td></tr>`;
             prev = target;
         }
     }
 
-    // 5. SHOPPING LIST LOGIC
     function render() {
         const g = document.getElementById('list'); 
         g.innerHTML = '';
         state.list.forEach((item, i) => {
+            // PROGRESS CALCULATION:
+            // Top of thermometer is item.lv[0] (High)
+            // Bottom of thermometer is item.lv[3] (Target)
             const range = item.lv[0] - item.lv[3];
-            const prog = range > 0 && item.p ? Math.max(0, Math.min(100, ((item.lv[0]-item.p)/range)*100)) : 0;
+            const prog = (range > 0 && item.p) ? Math.max(0, Math.min(100, ((item.lv[0] - item.p) / range) * 100)) : 0;
+
             g.innerHTML += `
-                <div class="column is-6-mobile is-4-desktop">
-                    <div class="card p-3">
-                        <div class="is-flex is-justify-content-between mb-2">
+                <div class="column is-12-mobile is-4-desktop">
+                    <div class="card p-4">
+                        <div class="is-flex is-justify-content-between align-items-center mb-3">
                             <strong class="is-size-5">${item.t}</strong>
-                            <span class="has-text-primary weight-bold">${item.p ? '$'+item.p : '--'}</span>
+                            <div class="has-text-right">
+                                <p class="is-size-4 has-text-primary weight-bold mb-0">${item.p ? '$'+item.p : '--'}</p>
+                                <button class="button is-ghost is-small p-0 has-text-danger" onclick="remove(${i})">Remove</button>
+                            </div>
                         </div>
-                        <div class="columns is-mobile is-multiline is-variable is-1">
-                            ${item.lv.map((v, li) => `
-                                <div class="column is-6 py-1">
-                                    <input class="input is-small" type="number" value="${v}" 
-                                    oninput="state.list[${i}].lv[${li}]=this.value;save()">
-                                </div>`).join('')}
+
+                        <div class="thermometer-container">
+                            <div class="thermo-track">
+                                <div class="thermo-fill" style="height: ${prog}%"></div>
+                                ${item.p ? `<div class="current-price-marker" style="bottom: ${prog}%"></div>` : ''}
+                            </div>
+                            <div class="thermo-labels">
+                                ${item.lv.map((v, li) => `
+                                    <div class="level-row">
+                                        <span>L${li+1}</span>
+                                        <input class="input is-small level-input" type="number" value="${v}" 
+                                        oninput="state.list[${i}].lv[${li}]=this.value;save();render()">
+                                    </div>
+                                `).join('')}
+                            </div>
                         </div>
-                        <div class="progress-container">
-                            <div class="progress-bar" style="width:${prog}%; background:${prog>=100?'#00d1b2':'#3e8ed0'}"></div>
-                        </div>
-                        <button class="button is-ghost is-small p-0 has-text-danger mt-1" onclick="remove(${i})">Remove</button>
                     </div>
                 </div>`;
         });
@@ -168,16 +217,11 @@
         if(t) { 
             state.list.unshift({t, lv:[0,0,0,0], p:null}); 
             document.getElementById('tick').value = '';
-            save(); 
-            render(); 
+            save(); render(); 
         } 
     }
 
-    function remove(index) {
-        state.list.splice(index, 1);
-        save();
-        render();
-    }
+    function remove(i) { state.list.splice(i, 1); save(); render(); }
     
     async function refresh() {
         const btn = document.getElementById('ref-btn'); 
@@ -186,23 +230,14 @@
             const tickers = state.list.map(i => i.t).join(',');
             const res = await fetch(`/api/prices?symbols=${tickers}`);
             const data = await res.json();
-            
             state.list.forEach(item => {
-                // API can return an object for multiple or single ticker
                 const val = (state.list.length === 1) ? data : data[item.t];
-                if(val && val.price) item.p = parseFloat(val.price);
+                if(val && val.price) item.p = parseFloat(val.price).toFixed(2);
             });
-            
-            save();
-            render();
-        } catch(e) {
-            console.error("Refresh error", e);
-        } finally { 
-            btn.classList.remove('is-loading'); 
-        }
+            save(); render();
+        } catch(e) { console.error(e); } finally { btn.classList.remove('is-loading'); }
     }
 
-    // INITIALIZE ON LOAD
     window.onload = loadState;
 </script>
 </body>
