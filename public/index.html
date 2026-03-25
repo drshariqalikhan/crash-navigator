@@ -9,20 +9,24 @@
         :root { --bg: #000000; --card: #111111; --border: #222222; --emerald: #00d1b2; --danger: #ff3860; --text: #e0e0e0; }
         body { background-color: var(--bg); color: var(--text); min-height: 100vh; font-family: system-ui, -apple-system, sans-serif; }
         
-        .card { background-color: var(--card); border: 1px solid var(--border); color: #fff; border-radius: 1rem; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
+        .card { background-color: var(--card); border: 1px solid var(--border); color: #fff; border-radius: 1rem; box-shadow: 0 4px 20px rgba(0,0,0,0.5); transition: 0.3s; }
+        .card:hover { border-color: #444; }
         .input { background-color: #080808; border-color: var(--border); color: #fff; border-radius: 0.5rem; }
         .input:focus { border-color: var(--emerald); box-shadow: 0 0 0 1px var(--emerald); }
         
+        /* Tabs */
         .tab-content { display: none; }
         .tab-content.is-active { display: block; }
         .nav-btn { background: #1a1a1a; border: none; color: #666; font-weight: bold; padding: 12px 20px; cursor: pointer; border-radius: 8px; transition: 0.3s; }
         .nav-btn.active { background: var(--emerald); color: #000; }
 
+        /* Strategy Table */
         .table { background-color: transparent; color: var(--text); width: 100%; }
         .table thead th { color: #555; border-bottom: 2px solid var(--border); text-transform: uppercase; font-size: 0.7rem; }
         .table td { border-bottom: 1px solid var(--border); padding: 0.75rem 0.5rem; vertical-align: middle; }
         .table tr:last-child td { border-bottom: none; }
 
+        /* Stock Scale UI */
         .scale-wrapper { display: flex; height: 220px; gap: 15px; align-items: stretch; margin-top: 10px; }
         .scale-axis { display: flex; flex-direction: column; justify-content: space-between; align-items: flex-end; width: 20px; color: #444; font-weight: bold; font-size: 0.75rem; }
         .progress-v-track { width: 14px; background: #080808; border: 1px solid var(--border); border-radius: 10px; position: relative; overflow: hidden; }
@@ -38,10 +42,11 @@
 </head>
 <body>
 <div class="container p-4">
+    <!-- Header -->
     <div class="is-flex is-justify-content-between is-align-items-center mb-5">
         <div>
             <h1 class="title is-4 has-text-white mb-0">Crash Navigator</h1>
-            <p class="is-size-7 has-text-grey">v6.2 Portfolio Mode</p>
+            <p class="is-size-7 has-text-grey">v6.3 TwelveData Batch Mode</p>
         </div>
         <div class="buttons has-background-black p-1" style="border-radius: 10px; border: 1px solid #222;">
             <button id="btn-strat" class="nav-btn active" onclick="tab('strat')">Strategy</button>
@@ -83,46 +88,48 @@
     <!-- Shopping Tab -->
     <div id="tab-shop" class="tab-content">
         <div class="field has-addons mb-5">
-            <div class="control is-expanded"><input id="tick" class="input" placeholder="Ticker..."></div>
-            <div class="control"><button class="button is-primary" onclick="add()">Add +</button></div>
-            <div class="control ml-2"><button id="ref-btn" class="button is-dark" onclick="refresh()">Refresh All Prices</button></div>
+            <div class="control is-expanded">
+                <input id="tick" class="input" placeholder="Ticker (e.g. TSLA)...">
+            </div>
+            <div class="control">
+                <button class="button is-primary" onclick="add()">Add +</button>
+            </div>
+            <div class="control ml-2">
+                <button id="ref-btn" class="button is-dark" onclick="refresh()">Refresh All Prices</button>
+            </div>
         </div>
         <div id="list" class="columns is-multiline is-mobile"></div>
     </div>
 </div>
 
 <script>
-    // Updated with your requested default list
+    // Default Configuration
+    const DEFAULT_LIST = [
+        "AAPL", "AMAT", "ASML", "AVGO", "AMZN", 
+        "FTNT", "GOOG", "LLY", "MSFT", "META", 
+        "NFLX", "PYPL", "V", "CDNS", "URA"
+    ].map(t => ({ t, lv: [0, 0, 0, 0], p: null }));
+
     let state = {
         cash: 10000,
         drop: 0,
-        list: [
-            { t: 'AAPL', lv: [0,0,0,0], p: null },
-            { t: 'AMAT', lv: [0,0,0,0], p: null },
-            { t: 'ASML', lv: [0,0,0,0], p: null },
-            { t: 'AVGO', lv: [0,0,0,0], p: null },
-            { t: 'AMZN', lv: [0,0,0,0], p: null },
-            { t: 'FTNT', lv: [0,0,0,0], p: null },
-            { t: 'GOOG', lv: [0,0,0,0], p: null },
-            { t: 'LLY', lv: [0,0,0,0], p: null },
-            { t: 'MSFT', lv: [0,0,0,0], p: null },
-            { t: 'META', lv: [0,0,0,0], p: null },
-            { t: 'NFLX', lv: [0,0,0,0], p: null },
-            { t: 'PYPL', lv: [0,0,0,0], p: null },
-            { t: 'V', lv: [0,0,0,0], p: null },
-            { t: 'CDNS', lv: [0,0,0,0], p: null },
-            { t: 'URA', lv: [0,0,0,0], p: null }
-        ]
+        list: DEFAULT_LIST
     };
 
     function loadState() {
         const saved = localStorage.getItem('crash_navigator_v6');
-        if (saved) state = JSON.parse(saved);
+        if (saved) {
+            const parsed = JSON.parse(saved);
+            state.cash = parsed.cash || 10000;
+            state.drop = parsed.drop || 0;
+            // Ensure the list is preserved or defaults are used
+            state.list = parsed.list && parsed.list.length > 0 ? parsed.list : DEFAULT_LIST;
+        }
         document.getElementById('cash').value = state.cash;
         document.getElementById('drop').value = state.drop;
         draw();
         render();
-        refresh(); // Fetch prices on load
+        refresh(); // Auto-refresh prices on load
     }
 
     function save() { localStorage.setItem('crash_navigator_v6', JSON.stringify(state)); }
@@ -171,7 +178,8 @@
     }
 
     function render() {
-        const g = document.getElementById('list'); g.innerHTML = '';
+        const g = document.getElementById('list'); 
+        g.innerHTML = '';
         state.list.forEach((item, i) => {
             const L4 = parseFloat(item.lv[3]) || 0;
             const L1 = parseFloat(item.lv[0]) || 0;
@@ -180,13 +188,14 @@
             let prog = (range > 0 && item.p) ? Math.max(0, Math.min(100, ((parseFloat(item.p) - L4) / range) * 100)) : 0;
 
             g.innerHTML += `
-                <div class="column is-12-mobile is-4-desktop">
+                <div class="column is-12-mobile is-4-tablet is-3-desktop">
                     <div class="card p-4">
                         <div class="is-flex is-justify-content-between mb-1">
-                            <strong class="is-size-4 has-text-white">${item.t}</strong>
-                            <span class="has-text-emerald is-size-4 weight-bold">${item.p ? '$'+item.p : '---'}</span>
+                            <strong class="is-size-5 has-text-white">${item.t}</strong>
+                            <span class="has-text-emerald is-size-5 weight-bold">${item.p ? '$'+item.p : '---'}</span>
                         </div>
                         <div class="mb-4"><button class="button is-ghost is-small p-0 has-text-danger" onclick="remove(${i})">Remove</button></div>
+
                         <div class="scale-wrapper">
                             <div class="scale-axis"><span>5</span><span>4</span><span>3</span><span>2</span><span>1</span><span>0</span></div>
                             <div class="progress-v-track">
@@ -213,27 +222,53 @@
         if(t) { 
             state.list.unshift({t, lv:[0,0,0,0], p:null}); 
             document.getElementById('tick').value = ''; 
-            save(); render(); await refresh(); 
+            save(); 
+            render();
+            await refresh(); 
         } 
     }
 
-    function remove(i) { state.list.splice(i, 1); save(); render(); }
+    function remove(i) { 
+        if(confirm(`Remove ${state.list[i].t}?`)) {
+            state.list.splice(i, 1); 
+            save(); 
+            render(); 
+        }
+    }
     
     async function refresh() {
         if (state.list.length === 0) return;
         const btn = document.getElementById('ref-btn'); 
         btn.classList.add('is-loading');
+
         try {
+            // ONE BATCH REQUEST for all symbols
             const tickers = state.list.map(i => i.t).join(',');
             const res = await fetch(`/api/prices?symbols=${tickers}`);
             const dataArray = await res.json();
+            
+            if (dataArray.error) {
+                console.error("API Error:", dataArray.error);
+                btn.innerText = "Rate Limited - Wait";
+                setTimeout(() => { btn.innerText = "Refresh All Prices"; }, 3000);
+                return;
+            }
+
+            // Sync API results with local state
             state.list.forEach(item => {
                 const found = dataArray.find(d => d.symbol === item.t);
-                if (found && found.price) item.p = parseFloat(found.price).toFixed(2);
+                if (found && found.price) {
+                    item.p = parseFloat(found.price).toFixed(2);
+                }
             });
-            save(); render();
-        } catch(e) { console.error("Batch API Error:", e); } 
-        finally { btn.classList.remove('is-loading'); }
+
+            save(); 
+            render();
+        } catch(e) { 
+            console.error("Network Error:", e); 
+        } finally { 
+            btn.classList.remove('is-loading'); 
+        }
     }
 
     window.onload = loadState;
