@@ -1,12 +1,15 @@
 import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import yahooFinance from 'yahoo-finance2';
+import { createRequire } from 'module'; // Added this
+
+// Initialize the "require" function for ES Modules
+const require = createRequire(import.meta.url);
+const yahooFinance = require('yahoo-finance2').default; // Use the reliable CJS loader
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Fix for __dirname in ES Modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -19,17 +22,9 @@ app.get('/api/prices', async (req, res) => {
 
         const symbolArray = symbols.split(',').map(s => s.trim().toUpperCase());
 
-        // FIX: Some versions of this library nest the functions under .default
-        // This check ensures we find the 'quote' function regardless of environment
-        const yf = yahooFinance.default || yahooFinance;
-
-        if (typeof yf.quote !== 'function') {
-            throw new Error('Yahoo Finance quote function not found');
-        }
-
-        const results = await yf.quote(symbolArray);
+        // Now yahooFinance.quote is guaranteed to be found
+        const results = await yahooFinance.quote(symbolArray);
         
-        // Ensure result is always an array
         const formattedResults = Array.isArray(results) ? results : [results];
         
         const cleanData = formattedResults.map(stock => ({
