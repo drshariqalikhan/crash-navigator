@@ -1,14 +1,24 @@
 import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { createRequire } from 'module'; // Import the bridge utility
+
+// Import the entire module as a raw object
+import * as yfRaw from 'yahoo-finance2';
+
+// --- BRUTE FORCE EXPORT RESOLVER ---
+// Render.com sometimes nests module exports weirdly. 
+// This checks every possible location for the 'quote' function.
+let quoteFn = null;
+if (typeof yfRaw.quote === 'function') {
+    quoteFn = yfRaw.quote;
+} else if (yfRaw.default && typeof yfRaw.default.quote === 'function') {
+    quoteFn = yfRaw.default.quote;
+} else if (yfRaw.default && yfRaw.default.default && typeof yfRaw.default.default.quote === 'function') {
+    quoteFn = yfRaw.default.default.quote;
+}
 
 const app = express();
 const PORT = process.env.PORT || 10000;
-
-// Setup the bridge to load the library in compatibility mode
-const require = createRequire(import.meta.url);
-const yahooFinance = require('yahoo-finance2').default; 
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -17,18 +27,23 @@ app.use(express.static('public'));
 
 app.get('/api/prices', async (req, res) => {
     try {
-        const { symbols } = req.query;
-        if (!symbols) return res.status(400).json({ error: 'No symbols' });
+        if (!quoteFn) {
+            throw new Error('Critical: Could not locate the Yahoo Finance quote function.');
+        }
 
-        // Clean up symbols (replace / with - for Yahoo compatibility)
+        const { symbols } = req.query;
+        if (!symbols) return res.status(400).json({ error: 'No symbols provided' });
+
+        // Format symbols for Yahoo (e.g., BTC/USD -> BTC-USD)
         const symbolArray = symbols.split(',').map(s => s.trim().toUpperCase().replace('/', '-'));
 
-        // Use the library through the bridge
-        const results = await yahooFinance.quote(symbolArray);
+        // Fetch using our safely extracted function
+        const results = await quoteFn(symbolArray);
         
-        // standardizing the result into an array
+        // Ensure the response is always formatted as an array
         const resultsArray = Array.isArray(results) ? results : [results];
 
+        // Format data to match what the frontend expects
         const cleanData = resultsArray.map(stock => ({
             symbol: stock.symbol,
             price: stock.regularMarketPrice || stock.preMarketPrice || stock.ask || 0
