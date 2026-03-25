@@ -44,7 +44,7 @@
     <div class="is-flex is-justify-content-between is-align-items-center mb-5">
         <div>
             <h1 class="title is-4 has-text-white mb-0">Crash Navigator</h1>
-            <p class="is-size-7 has-text-grey">v6.0 Full Deployment Mode</p>
+            <p class="is-size-7 has-text-grey">v6.1 Secure API Mode</p>
         </div>
         <div class="buttons has-background-black p-1" style="border-radius: 10px; border: 1px solid #222;">
             <button id="btn-strat" class="nav-btn active" onclick="tab('strat')">Strategy</button>
@@ -88,7 +88,7 @@
         <div class="field has-addons mb-5">
             <div class="control is-expanded"><input id="tick" class="input" placeholder="Ticker (e.g. TSLA)..."></div>
             <div class="control"><button class="button is-primary" onclick="add()">Add +</button></div>
-            <div class="control ml-2"><button id="ref-btn" class="button is-dark" onclick="refresh()">Refresh</button></div>
+            <div class="control ml-2"><button id="ref-btn" class="button is-dark" onclick="refresh()">Refresh All</button></div>
         </div>
         <div id="list" class="columns is-multiline is-mobile"></div>
     </div>
@@ -132,7 +132,6 @@
         if(t === 'shop') render();
     }
 
-    // Logistic function for deployment: reaches 100% target around 45-50% drop
     function calc(d) { return d < 27 ? d + 10 : (2.75 * d) - 25.64; }
 
     function draw() {
@@ -141,7 +140,6 @@
         let target = 0;
         let i = 0;
 
-        // Loop until all cash (100%) is deployed
         while (target < 100 && i < 40) { 
             const curDrop = state.drop + (i * 2);
             target = Math.min(100, calc(curDrop));
@@ -157,7 +155,6 @@
                     <td class="has-text-right has-text-grey">$${cumulative.toLocaleString(undefined, {maximumFractionDigits:0})}</td>
                 </tr>`;
             }
-
             prevTarget = target;
             i++;
         }
@@ -210,29 +207,35 @@
             document.getElementById('tick').value = ''; 
             save(); 
             render();
-            await refresh(); // Immediately fetch price for the new ticker
+            await refresh(); // Auto-refresh prices when adding
         } 
     }
 
     function remove(i) { state.list.splice(i, 1); save(); render(); }
     
     async function refresh() {
+        if (state.list.length === 0) return;
         const btn = document.getElementById('ref-btn'); 
         btn.classList.add('is-loading');
+
         try {
+            // Join all symbols into ONE request: "AAPL,TSLA,NVDA"
             const tickers = state.list.map(i => i.t).join(',');
-            if(!tickers) return;
             const res = await fetch(`/api/prices?symbols=${tickers}`);
-            const data = await res.json();
+            const dataArray = await res.json();
             
+            // Map the returned array back to our local state
             state.list.forEach(item => {
-                const val = (state.list.length === 1) ? data : data[item.t];
-                if(val && val.price) item.p = parseFloat(val.price).toFixed(2);
+                const found = dataArray.find(d => d.symbol === item.t);
+                if (found && found.price) {
+                    item.p = parseFloat(found.price).toFixed(2);
+                }
             });
+
             save(); 
             render();
         } catch(e) { 
-            console.error("API Error:", e); 
+            console.error("Batch API Error:", e); 
         } finally { 
             btn.classList.remove('is-loading'); 
         }
