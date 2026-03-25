@@ -1,56 +1,36 @@
-const express = require('express');
-const path = require('path');
-const axios = require('axios');
+import express from 'express';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import yahooFinance from 'yahoo-finance2';
+
 const app = express();
 const PORT = process.env.PORT || 10000;
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 app.use(express.static('public'));
 
 app.get('/api/prices', async (req, res) => {
     try {
         const { symbols } = req.query;
-        const apiKey = process.env.TWELVE_DATA_KEY; 
+        if (!symbols) return res.status(400).json({ error: 'No symbols' });
 
-        if (!apiKey) {
-            return res.status(500).json({ error: 'API Key missing on server' });
-        }
-        if (!symbols) {
-            return res.status(400).json({ error: 'No symbols requested' });
-        }
+        // Yahoo prefers dashes for crypto (BTC-USD) and dots for classes (BRK.B)
+        const symbolArray = symbols.split(',').map(s => s.trim().toUpperCase().replace('/', '-'));
 
-        // Twelve Data API Call
-        const response = await axios.get(`https://api.twelvedata.com/price`, {
-            params: { symbol: symbols, apikey: apiKey }
-        });
+        const results = await yahooFinance.quote(symbolArray);
+        
+        // Yahoo returns an array of objects. We map them to match your frontend.
+        const cleanData = results.map(stock => ({
+            symbol: stock.symbol,
+            price: stock.regularMarketPrice || stock.preMarketPrice || 0
+        }));
 
-        const data = response.data;
-
-        // If Twelve Data returns an error (like Rate Limit)
-        if (data.status === 'error') {
-            console.error("Twelve Data Error:", data.message);
-            return res.status(429).json({ error: data.message });
-        }
-
-        let results = [];
-        const symbolList = symbols.split(',').map(s => s.trim().toUpperCase());
-
-        // Standardize output to an array [{symbol, price}, ...]
-        if (symbolList.length === 1) {
-            results.push({ symbol: symbolList[0], price: data.price });
-        } else {
-            symbolList.forEach(s => {
-                if (data[s] && data[s].price) {
-                    results.push({ symbol: s, price: data[s].price });
-                } else if (data.price && symbolList.length === 1) {
-                    results.push({ symbol: s, price: data.price });
-                }
-            });
-        }
-
-        res.json(results);
+        res.json(cleanData);
     } catch (error) {
-        console.error('Proxy Error:', error.message);
-        res.status(500).json({ error: 'Server could not reach API' });
+        console.error('Yahoo API Error:', error.message);
+        res.status(500).json({ error: 'Failed to fetch prices' });
     }
 });
 

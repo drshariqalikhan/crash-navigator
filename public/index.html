@@ -46,7 +46,7 @@
     <div class="is-flex is-justify-content-between is-align-items-center mb-5">
         <div>
             <h1 class="title is-4 has-text-white mb-0">Crash Navigator</h1>
-            <p class="is-size-7 has-text-grey">v6.3 TwelveData Batch Mode</p>
+            <p class="is-size-7 has-text-grey">v6.4 Yahoo Portfolio Mode</p>
         </div>
         <div class="buttons has-background-black p-1" style="border-radius: 10px; border: 1px solid #222;">
             <button id="btn-strat" class="nav-btn active" onclick="tab('strat')">Strategy</button>
@@ -89,7 +89,7 @@
     <div id="tab-shop" class="tab-content">
         <div class="field has-addons mb-5">
             <div class="control is-expanded">
-                <input id="tick" class="input" placeholder="Ticker (e.g. TSLA)...">
+                <input id="tick" class="input" placeholder="Ticker (e.g. AAPL)...">
             </div>
             <div class="control">
                 <button class="button is-primary" onclick="add()">Add +</button>
@@ -103,7 +103,7 @@
 </div>
 
 <script>
-    // Default Configuration
+    // 15 Default Stocks
     const DEFAULT_LIST = [
         "AAPL", "AMAT", "ASML", "AVGO", "AMZN", 
         "FTNT", "GOOG", "LLY", "MSFT", "META", 
@@ -122,14 +122,13 @@
             const parsed = JSON.parse(saved);
             state.cash = parsed.cash || 10000;
             state.drop = parsed.drop || 0;
-            // Ensure the list is preserved or defaults are used
-            state.list = parsed.list && parsed.list.length > 0 ? parsed.list : DEFAULT_LIST;
+            state.list = (parsed.list && parsed.list.length > 0) ? parsed.list : DEFAULT_LIST;
         }
         document.getElementById('cash').value = state.cash;
         document.getElementById('drop').value = state.drop;
         draw();
         render();
-        refresh(); // Auto-refresh prices on load
+        refresh(); // Auto-load prices on startup
     }
 
     function save() { localStorage.setItem('crash_navigator_v6', JSON.stringify(state)); }
@@ -242,21 +241,21 @@
         btn.classList.add('is-loading');
 
         try {
-            // ONE BATCH REQUEST for all symbols
             const tickers = state.list.map(i => i.t).join(',');
             const res = await fetch(`/api/prices?symbols=${tickers}`);
             const dataArray = await res.json();
             
             if (dataArray.error) {
-                console.error("API Error:", dataArray.error);
-                btn.innerText = "Rate Limited - Wait";
-                setTimeout(() => { btn.innerText = "Refresh All Prices"; }, 3000);
+                console.error("Yahoo Error:", dataArray.error);
                 return;
             }
 
-            // Sync API results with local state
             state.list.forEach(item => {
-                const found = dataArray.find(d => d.symbol === item.t);
+                // Yahoo returns symbols with dashes instead of slashes. 
+                // We normalize comparison to match our local list.
+                const found = dataArray.find(d => 
+                    d.symbol.replace(/[-/]/g, '') === item.t.replace(/[-/]/g, '')
+                );
                 if (found && found.price) {
                     item.p = parseFloat(found.price).toFixed(2);
                 }
