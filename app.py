@@ -11,42 +11,37 @@ def get_prices():
     if not symbols_param:
         return jsonify({'error': 'No symbols provided'}), 400
 
-    # Format symbols: AAPL, BTC/USD -> AAPL, BTC-USD
+    # Format symbols for Yahoo (e.g., BTC/USD -> BTC-USD)
     symbols_list = symbols_param.upper().replace('/', '-').split(',')
-    
-    # yfinance prefers space-separated strings for batching
-    symbols_str = " ".join(symbols_list)
-    
     results = []
-    try:
-        # Fetch all tickers at once
-        tickers = yf.Tickers(symbols_str)
-        
-        for sym in symbols_list:
-            try:
-                # fast_info is the quickest way to get current market price in yfinance
-                price = tickers.tickers[sym].fast_info['last_price']
+
+    # Iterate through symbols using the robust .history() method
+    for sym in symbols_list:
+        try:
+            ticker = yf.Ticker(sym)
+            # .history(period="1d") is the most block-resistant endpoint
+            hist = ticker.history(period="1d")
+            
+            if not hist.empty:
+                # Extract the latest closing price
+                price = hist['Close'].iloc[-1]
                 results.append({
                     'symbol': sym,
-                    'price': round(price, 2)
+                    'price': round(float(price), 2)
                 })
-            except Exception as e:
-                print(f"Warning: Could not fetch price for {sym}: {e}")
-                # If a ticker fails (e.g. delisted), skip it gracefully
-                pass
+            else:
+                print(f"Warning: No data returned for {sym}")
+        except Exception as e:
+            print(f"Error fetching {sym}: {e}")
 
-        return jsonify(results)
-    
-    except Exception as e:
-        print(f"API Error: {e}")
-        return jsonify({'error': 'Failed to fetch prices'}), 500
+    return jsonify(results)
 
 # Route to serve your frontend index.html
 @app.route('/')
 def serve_index():
     return send_from_directory(app.static_folder, 'index.html')
 
-# Catch-all route to serve other files (like CSS/JS if you add them later)
+# Catch-all route to serve other static files
 @app.route('/<path:path>')
 def serve_static(path):
     if os.path.exists(os.path.join(app.static_folder, path)):
