@@ -1,17 +1,10 @@
-import express from 'express';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import { createRequire } from 'module'; // Added this
-
-// Initialize the "require" function for ES Modules
-const require = createRequire(import.meta.url);
-const yahooFinance = require('yahoo-finance2').default; // Use the reliable CJS loader
-
+const express = require('express');
+const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// This is the most compatible way to load this specific library
+const yahooFinance = require('yahoo-finance2').default;
 
 app.use(express.static('public'));
 
@@ -22,14 +15,15 @@ app.get('/api/prices', async (req, res) => {
 
         const symbolArray = symbols.split(',').map(s => s.trim().toUpperCase());
 
-        // Now yahooFinance.quote is guaranteed to be found
+        // Call Yahoo Finance
         const results = await yahooFinance.quote(symbolArray);
         
+        // Always return an array to the frontend
         const formattedResults = Array.isArray(results) ? results : [results];
         
         const cleanData = formattedResults.map(stock => ({
             symbol: stock.symbol,
-            price: stock.regularMarketPrice || stock.preMarketPrice || 0,
+            price: stock.regularMarketPrice || stock.preMarketPrice || stock.ask || 0,
             currency: stock.currency,
             change: stock.regularMarketChangePercent || 0
         }));
@@ -37,7 +31,10 @@ app.get('/api/prices', async (req, res) => {
         res.json(cleanData);
     } catch (error) {
         console.error('Yahoo Finance Error:', error.message);
-        res.status(500).json({ error: 'Failed to fetch prices', details: error.message });
+        res.status(500).json({ 
+            error: 'Failed to fetch prices', 
+            message: error.message 
+        });
     }
 });
 
