@@ -16,13 +16,21 @@ app.get('/api/prices', async (req, res) => {
         const { symbols } = req.query;
         if (!symbols) return res.status(400).json({ error: 'No symbols' });
 
-        // Yahoo prefers dashes for crypto (BTC-USD) and dots for classes (BRK.B)
         const symbolArray = symbols.split(',').map(s => s.trim().toUpperCase().replace('/', '-'));
 
-        const results = await yahooFinance.quote(symbolArray);
+        // FIX: Handle the "is not a function" error by checking both direct and default exports
+        const provider = yahooFinance.quote ? yahooFinance : yahooFinance.default;
         
-        // Yahoo returns an array of objects. We map them to match your frontend.
-        const cleanData = results.map(stock => ({
+        if (!provider || typeof provider.quote !== 'function') {
+            throw new Error('Yahoo Finance quote function could not be initialized');
+        }
+
+        const results = await provider.quote(symbolArray);
+        
+        // Ensure the response is always an array
+        const resultsArray = Array.isArray(results) ? results : [results];
+
+        const cleanData = resultsArray.map(stock => ({
             symbol: stock.symbol,
             price: stock.regularMarketPrice || stock.preMarketPrice || 0
         }));
@@ -30,7 +38,7 @@ app.get('/api/prices', async (req, res) => {
         res.json(cleanData);
     } catch (error) {
         console.error('Yahoo API Error:', error.message);
-        res.status(500).json({ error: 'Failed to fetch prices' });
+        res.status(500).json({ error: error.message });
     }
 });
 
