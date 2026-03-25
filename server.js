@@ -18,11 +18,20 @@ app.get('/api/prices', async (req, res) => {
         if (!symbols) return res.status(400).json({ error: 'No symbols provided' });
 
         const symbolArray = symbols.split(',').map(s => s.trim().toUpperCase());
+
+        // FIX: Some versions of this library nest the functions under .default
+        // This check ensures we find the 'quote' function regardless of environment
+        const yf = yahooFinance.default || yahooFinance;
+
+        if (typeof yf.quote !== 'function') {
+            throw new Error('Yahoo Finance quote function not found');
+        }
+
+        const results = await yf.quote(symbolArray);
         
-        // Yahoo Finance 2 works much better with 'import'
-        const results = await yahooFinance.quote(symbolArray);
-        
+        // Ensure result is always an array
         const formattedResults = Array.isArray(results) ? results : [results];
+        
         const cleanData = formattedResults.map(stock => ({
             symbol: stock.symbol,
             price: stock.regularMarketPrice || stock.preMarketPrice || 0,
@@ -33,7 +42,7 @@ app.get('/api/prices', async (req, res) => {
         res.json(cleanData);
     } catch (error) {
         console.error('Yahoo Finance Error:', error.message);
-        res.status(500).json({ error: 'Failed to fetch prices' });
+        res.status(500).json({ error: 'Failed to fetch prices', details: error.message });
     }
 });
 
